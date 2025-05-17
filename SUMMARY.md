@@ -41,7 +41,7 @@
   * [1.5 MM HOBs](1_mm_introduction.md#15-mm-hobs)
     * [1.51 MM Foundation HOBs](1_mm_introduction.md#151-mm-foundation-hobs)
     * [1.52 MM Platform HOBs](1_mm_introduction.md#152-mm-platform-hobs)
-  * [1.6 Communication between SMM/Non-SMM](1_mm_introduction.md#16-communication-between-smmnon-smm)
+  * [1.6 Data Communication between SMM/Non-SMM](1_mm_introduction.md#16-data-communication-between-smmnon-smm)
   * [1.7 Memory Protection](1_mm_introduction.md#17-memory-protection)
 
 * [2 SMM to MM Porting Guide](2_smm_to_mm_porting_guide.md#2-smm-to-mm-porting-guide)

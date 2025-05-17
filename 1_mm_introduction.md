@@ -33,6 +33,10 @@
 
 ## 1.1 SMM and MM Overview
 
+**System Management Mode (SMM)** is a specialized operating mode designed for x86 processors to handle system-wide functions such as power management, hardware control, and OEM-designed code.
+
+**Management Mode (MM)** is an isolated execution environment introduced as a modern alternative to SMM. It is designed to provide enhanced security and modularity by running independently of the operating system and other firmware phases.
+
 This section describes the main differences between Traditional SMM and Standalone MM on X86 systems. A detailed comparison of the Traditional MM and Standalone MM load process is described in the PI Specification sections "Initializing Management Mode in MM Traditional Mode" and "Initializing Management Mode in Standalone Mode" respectively.
 
 In the following comparison, we will use "SMM" to represent "Traditional SMM" and "MM" to represent "Standalone MM".
@@ -63,7 +67,7 @@ For traditional SMM drivers dispatch on X86 systems, they are dispatched within 
 
 `StandaloneMmIpl` is a PEIM responsible for locating and loading `StandaloneMmCore`. All the MM drivers are dispatched by `StandaloneMmCore` in the 2-round dispatches in X86:
 
-- **1st round**: `StandaloneMmCore` dispatches MM drivers in its IPL entry point running in non-SMM mode. It exits to `StandaloneMmIpl` after `PiSmmCpuStandaloneMm` installs the SMI handler in its entry point.
+- **1st round**: `StandaloneMmCore` dispatches MM drivers in `StandaloneMmIpl` entry point running in non-SMM mode. It exits to `StandaloneMmIpl` after `PiSmmCpuStandaloneMm` installs the SMI handler in its entry point.
 - **2nd round**: `StandaloneMmIpl` triggers SMI (`gEventMmDispatchGuid`) to inform `StandaloneMmCore` to dispatch the remaining MM drivers in SMM mode in its SMI entry point.
 
 The following flow chart describes the MM driver dispatch flow:
@@ -127,22 +131,23 @@ The MM Foundation HOBs are a set of HOBs that are created by the common logic wi
 
 In addition to the MM Foundation HOBs, the `StandaloneMmIpl` will consume the `MmPlatformHobProducerLib/CreateMmPlatformHob()` to create platform-specific HOBs that are necessary for the Standalone MM environment. These HOBs provide information and configuration details that are unique to the platform on which the system is running. The creation of these HOBs ensures that the MM environment is properly configured to interact with the platform's hardware and firmware features.
 
-## 1.6 Communication between SMM/Non-SMM
-The following mechanisms are provided for communication between SMM and Non-SMM:
+## 1.6 Data Communication between SMM/Non-SMM
+The following mechanisms are provided for data communication between SMM and Non-SMM:
 
 1. Using `CommBuffer` with Protocol `EFI_MM_COMMUNICATION_PROTOCOL` or PPI `EFI_PEI_MM_COMMUNICATION_PPI`:
    - Requires dependency on the `EFI_MM_COMMUNICATION_PROTOCOL` or `EFI_PEI_MM_COMMUNICATION_PPI`.
    - Triggers an SMI when sharing data between SMM and Non-SMM code.
+   - It is suitable when the data cannot be finalized before launching MM or when the data flow is bidirectional between SMM and Non-SMM code
 
 2. Using "Unblock Mem":
    - Must meet the usage requirements. Refer to section **1.4 Non-MMRAM Access** for details.
+   - It is necessary for ASL code to pass data to the SW SMI handler. It is also an alternative solution to avoid triggering an SMI for latency considerations.
 
 3. Using MM Guided HOBs:
    - For data sizes < 64KB: Embed the data directly into the HOB.
+   - It is ideal when the data size is small than 64K and it can be finalized before launching MM and the data flow is unidirectional between SMM and Non-SMM code.
 
-Option #1 is suitable when the data cannot be finalized before launching MM or when the data flow is bidirectional between SMM and Non-SMM code. Option #2 is necessary for ASL code to pass data to the SW SMI handler. It is also an alternative solution to avoid triggering an SMI for latency considerations. Option #3 is ideal when the data size is small than 64K and it can be finalized before launching MM and the data flow is unidirectional between SMM and Non-SMM code.
-
-But in cases where silicon initialization code does not want to rely on the communication PPI, the data size to be passed to MM exceeds 64KB, and the memory cannot be runtime-accessible due to the requirement for Runtime Non-SMM invisibility, then options #1 and #2 are not applicable. Option #3 requires splitting the data into multiple Guided HOBs, which increases code complexity due to the need to reassemble the data in MM. To simplify this, a fourth method was introduced as below:
+However, in cases where silicon initialization code does not want to rely on the communication PPI, the data size to be passed to MM exceeds 64KB, and the memory cannot be runtime-accessible due to the requirement for Runtime Non-SMM invisibility, then options #1 and #2 are not applicable. Option #3 requires splitting the data into multiple Guided HOBs, which increases code complexity due to the need to reassemble the data in MM. To simplify this, a fourth method was introduced as below:
 
 4. Using MM Memory Allocation HOBs with BSData and Non-Zero GUID:
    - Memory Producer (PEIM): Create a Memory Allocation HOB pointing to a BSData memory region and assign a Non-Zero GUID to the corresponding HOB.
@@ -153,7 +158,7 @@ But in cases where silicon initialization code does not want to rely on the comm
 
 The `PiSmmCpuStandaloneMm` driver creates a page table used in MM mode according to the `EFI_HOB_RESOURCE_DESCRIPTOR` in the MM HOB list. The newly created page table controls memory accessibility in MM.
 
-The following table outlines the differences in memory protection policies between the traditional SMM and the Standalone MM. Note: this comparison is particularly relevant for x86 systems and highlights the security enhancements provided by Standalone MM.
+Table 1 outlines the boot phase at which memory protection policies take effect, highlighting the differences between traditional SMM and Standalone MM. Note: this comparison is particularly relevant for x86 systems and highlights the security enhancements provided by Standalone MM.
 
 | Items                        | Policy                                      | SMM                          | MM                           |
 |------------------------------|---------------------------------------------|------------------------------|------------------------------|
